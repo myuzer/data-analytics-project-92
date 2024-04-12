@@ -80,3 +80,79 @@ GROUP BY
 ORDER BY
     sale_date ASC,
     seller ASC;
+
+
+-- 5. Данный запрос позволяет отобразить покупателей в разрезе 3-х заданных возрастных категорий.
+
+SELECT
+    CASE
+        WHEN age BETWEEN 16 AND 25 THEN '16-25'
+        WHEN age BETWEEN 26 AND 40 THEN '26-40'
+        WHEN age > 40 THEN '40+'
+    END AS age_category,
+    COUNT(age) AS age_count
+FROM customers
+GROUP BY age_category
+ORDER BY age_category ASC;
+
+
+-- 6. Данный запрос отображает количество уникальных покупателей в каждом месяце и выручку, которую они принесли.
+
+SELECT
+    TO_CHAR(s.sale_date, 'YYYY-MM') AS selling_month,
+    COUNT(DISTINCT s.customer_id) AS total_customers,
+    FLOOR(SUM(s.quantity * p.price)) AS income
+FROM sales AS s
+INNER JOIN products AS p
+    ON s.product_id = p.product_id
+GROUP BY
+    selling_month
+ORDER BY selling_month ASC;
+
+
+-- 7. Данный запрос позволяет отобразить клиентов, которые первую свою покупку совершили в ходе проведения акции.
+-- 7.1. Для начала с помощью временной таблицы и подзапроса найдем все сделки, в которых были товары по акции.
+
+WITH t1 AS (
+    SELECT
+        s.customer_id,
+        s.sale_date,
+        p.product_id,
+        p.price,
+        s.sales_person_id,
+        c.first_name || ' ' || c.last_name AS customer,
+        e.first_name || ' ' || e.last_name AS seller
+    FROM sales AS s
+    INNER JOIN customers AS c
+        ON s.customer_id = c.customer_id
+    INNER JOIN employees AS e
+        ON s.sales_person_id = e.employee_id
+    INNER JOIN products AS p
+        ON s.product_id = p.product_id
+    WHERE
+        p.product_id IN (
+            SELECT product_id
+            FROM products
+            WHERE price = 0
+        )
+    ORDER BY s.sale_date ASC
+),
+
+-- 7.2. Затем с помощью еще одной временной таблицы определим очередность сделок всех покупателей из таблицы t1. 
+t2 AS (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (PARTITION BY customer ORDER BY sale_date) AS rn
+    FROM t1
+)
+
+-- 7.3. И теперь с помощью основного запроса выведем именно тех покупателей (и продавцов, участвоваших в сделке), в первой сделке которых были товары по акции.
+SELECT
+    customer,
+    sale_date,
+    seller
+FROM t2
+WHERE rn = 1
+ORDER BY customer_id ASC;
+
+
