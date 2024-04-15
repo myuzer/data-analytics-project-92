@@ -61,25 +61,33 @@ WHERE
             ON s.product_id = p.product_id
     )
 ORDER BY average_income ASC;
-
-
 -- 4. Данный запрос отображает информацию о выручке каждого продавца в разбивке по дням недели.
 
+WITH t1 AS (
+    SELECT
+        e.first_name || ' ' || e.last_name AS seller,
+        TO_CHAR(s.sale_date, 'day') AS day_of_week,
+        TO_CHAR(s.sale_date, 'ID') AS number_of_day,
+        FLOOR(SUM(s.quantity * p.price)) AS income
+    FROM sales AS s
+    INNER JOIN employees AS e
+        ON s.sales_person_id = e.employee_id
+    INNER JOIN products AS p
+        ON s.product_id = p.product_id
+    GROUP BY
+        day_of_week,
+        number_of_day,
+        seller
+    ORDER BY
+        number_of_day ASC,
+        seller ASC
+)
+
 SELECT
-    e.first_name || ' ' || e.last_name AS seller,
-    TO_CHAR(s.sale_date, 'day') AS day_of_week,
-    FLOOR(SUM(s.quantity * p.price)) AS income
-FROM sales AS s
-INNER JOIN employees AS e
-    ON s.sales_person_id = e.employee_id
-INNER JOIN products AS p
-    ON s.product_id = p.product_id
-GROUP BY
-    sale_date,
-    seller
-ORDER BY
-    sale_date ASC,
-    seller ASC;
+    seller,
+    day_of_week,
+    income
+FROM t1;
 
 
 -- 5. Данный запрос позволяет отобразить покупателей в разрезе 3-х заданных возрастных категорий.
@@ -154,5 +162,3 @@ SELECT
 FROM t2
 WHERE rn = 1
 ORDER BY customer_id ASC;
-
-
